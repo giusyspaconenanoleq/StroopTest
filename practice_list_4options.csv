@@ -1,0 +1,7 @@
+stimulus,colour,alt1,alt2,alt3,alt4,correctresponse
+green,blue,blue,green,yellow,red,left
+red,green,red,green,orange,red,right
+blue,yellow,yellow,blue,pink,black,left
+yellow,red,red,yellow,blue,purple,left
+red,blue,red,blue,pink,orange,right
+blue,green,blue,green,yellow,red,right
