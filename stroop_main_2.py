@@ -2,25 +2,29 @@
 
 ############### References: https://github.com/marsja/stroopy/blob/master/stroopy.py
 
-
 import os
 import sys
-from psychopy import event, core, data, gui, visual
+from psychopy import event, core, data, gui, visual, sound
 from fileHandling import *
+
+mistake_sound = sound.Sound('negative-101682.mp3')
+level1_file = 'stroop_task_2options.csv'
+level1_numbers='stroop_task_4options_numbers.csv'
 
 
 class Experiment:
-    def __init__(self, num_options, win_color, txt_color, completed_levels=None):
+    #def __init__(self, num_options, win_color, txt_color, completed_levels=None):
+    def __init__(self, win_color, txt_color):
         # stimuli_positions 
         # [0, 0] is to show the question. Will be stored in stimuli_positions[-1]
         
-        if num_options == 2:
-            self.stimuli_positions = [[-.4, 0], [.4, 0], [0, 0]]
-        if num_options == 4:
-            self.stimuli_positions = [[-.4, 0], [.4, 0], [0, .4], [0, -.4], [0, 0]]
+        #if num_options == 2:
+        #    self.stimuli_positions = [[-.4, 0], [.4, 0], [0, 0]]
+        #if num_options == 4:
+        #    self.stimuli_positions = [[-.4, 0], [.4, 0], [0, .4], [0, -.4], [0, 0]]
         self.win_color = win_color
         self.txt_color = txt_color
-        self.completed_levels = completed_levels
+        #self.completed_levels = completed_levels
 
     def create_window(self, color=(1, 1, 1)):
         # type: (object, object) -> object
@@ -35,16 +39,19 @@ class Experiment:
         """
         # getting current folder
         #_thisDir = os.path.dirname(os.path.abspath(__file__))
-        print (completed_levels)
-        remaining_sessions = []
+        
+        remaining_sessions = ['practice', 'level1_2options', 'level1_numbers', 'level2_2options', 'level2_numbers']
+        for i in completed_levels:
+            remaining_sessions.remove(i)
+        """
         if completed_levels is None:
-            remaining_sessions = ['practice', 'level1', 'level2']
+            remaining_sessions = ['practice', 'level1_2options', 'level1_numbers', 'level2_2options', 'level2_numbers']
         elif completed_levels == 'practice':
             print ('practice completed')
-            remaining_sessions = ['level1', 'level2']
+            remaining_sessions = ['level1_2options', 'level1_numbers', 'level2_2options', 'level2_numbers']
         elif completed_levels == 'level1':
             remaining_sessions = ['level2']
-
+        """
 
         experiment_info = {'User_ID': 'user_00x', 'Session': remaining_sessions, 
                            'Language': ['English'], u'date':
@@ -93,7 +100,7 @@ class Experiment:
         _stimulus.setColor(color)
         _stimulus.setText(text) 
 
-    def running_experiment(self, trials, testtype, curr_window):
+    def running_experiment(self, trials, testtype, curr_window, key_list):
         _trials = trials
 
         # getting the number of alternatives we want to show
@@ -108,7 +115,7 @@ class Experiment:
         timer = core.Clock()
 
         # this will create "empty" text to show stimuli on main window
-        stimuli = [self.create_text_stimuli(curr_window) for _ in range(num_options+1)]
+        #stimuli = [self.create_text_stimuli(curr_window) for _ in range(num_options+1)]
 
         for trial in _trials:
             # Fixation cross
@@ -121,12 +128,15 @@ class Experiment:
             timer.reset()
 
             # Target word (will occupy center of the screen)
-            target = visual.TextStim(win=curr_window, ori=0, name='',text=trial['stimulus'], 
-                                     font=u'Arial',pos=self.stimuli_positions[-1],color=trial['colour'], colorSpace=u'rgb')
-            #target = self.present_stimuli(trial['colour'], trial['stimulus'],
-            #                              self.stimuli_positions[-1], stimuli[0])
-            target.draw()
+            #target = visual.TextStim(win=curr_window, ori=0, name='',text=trial['stimulus'], 
+            #                         font=u'Arial',pos=self.stimuli_positions[-1],color=trial['colour'], colorSpace=u'rgb')
+            target_stimuli = visual.TextStim(win=window, ori=0, 
+                        name='', text=trial['stimulus'], font=u'Arial',
+                        pos=[0.0, 0.5], color=trial['colour'], colorSpace=u'rgb')
 
+            target_stimuli.height = 0.5
+            target_stimuli.draw()
+            """
             for i in range(0, num_options):
                 #print(trial['alt'+str(i+1)])
                 #print (self.stimuli_positions[i])
@@ -136,15 +146,33 @@ class Experiment:
                 alt = visual.TextStim(win=curr_window, ori=0, name='',text=trial['alt'+str(i+1)], 
                                      font=u'Arial',pos=self.stimuli_positions[i], color=self.txt_color, colorSpace=u'rgb')
                 alt.draw()
+            """
+            count = 1
+            delta_horizontal = window.size[0] / (num_options //2)
+            for i in range(-num_options //2, num_options//2):
+                w_pos_pixel = delta_horizontal//2 + i*delta_horizontal
+                w_pos_norm = w_pos_pixel / window.size[0]
 
+                alt_stimuli = visual.TextStim(win=window, ori=0, 
+                                    name='', text=trial['alt'+str(count)], font=u'Arial',
+                                    pos=[w_pos_norm, -0.4], color="White", colorSpace=u'rgb')
+                if num_options == 2:
+                    alt_stimuli.height = target_stimuli.height / 2 
+                elif num_options == 4:
+                    alt_stimuli.height = target_stimuli.height / 4
+
+                alt_stimuli.draw()
+                count = count +1
             window.flip()
 
             
             # note: for now m == right
             #               x == left
-            resp_time = timer.getTime()
+            
             if testtype == 'practice':
-                keys = event.waitKeys(keyList=['left', 'right', 'up', 'down', 'q', 'm', 'x'])
+                keys = event.waitKeys(keyList=key_list)
+                resp_time = timer.getTime()
+                absTimer= core.getAbsTime()                    #this returns the whole seconds elapsed since whole seconds elapsed since Jan 1, 1970
                 if keys[0] != trial['correctresponse']:
                     text_stimuli = visual.TextStim(window,text='WRONG', wrapWidth=1.2,alignHoriz='center', color='White',
                     alignVert='center', height=0.06)
@@ -160,6 +188,7 @@ class Experiment:
                     trial['Accuracy'] = 1
                 
                 trial['RT'] = resp_time
+                trial['TimeStamp'] = absTimer
                 print (trial['RT'])
                 trial['Response'] = keys[0]
                 trial['User_ID'] = settings['User_ID']
@@ -170,11 +199,16 @@ class Experiment:
                 core.wait(2)
 
             if testtype == 'test':
-                keys = event.waitKeys(keyList=['left', 'right', 'up', 'down', 'q', 'm', 'x'])
+                mistake_sound.stop()
+                #keys = event.waitKeys(keyList=['left', 'right', 'up', 'down'])
+                keys = event.waitKeys(keyList=key_list)
+                resp_time = timer.getTime()
+                absTimer= core.getAbsTime()
                 if keys[0] != trial['correctresponse']:
-                    text_stimuli = visual.TextStim(window,text='WRONG', wrapWidth=1.2,alignHoriz='center', color='White',
-                    alignVert='center', height=0.06)
+                    text_stimuli = visual.TextStim(window,text='X', wrapWidth=1.2, alignHoriz='center', color='Red',
+                    alignVert='center', height=2)
                     text_stimuli.draw()
+                    mistake_sound.play()
                     #instruction_stimuli['incorrect'].draw()
                     trial['Accuracy'] = 0
 
@@ -187,6 +221,7 @@ class Experiment:
                 
                 trial['RT'] = resp_time
                 print (trial['RT'])
+                trial['TimeStamp'] = absTimer
                 trial['Response'] = keys[0]
                 trial['User_ID'] = settings['User_ID']
                 print ('saving')
@@ -196,18 +231,23 @@ class Experiment:
                 core.wait(2)
 
             if testtype == 'test2':
-                keys = event.waitKeys(maxWait=1, keyList=['left', 'right', 'up', 'down', 'q', 'm', 'x'])
+                mistake_sound.stop()
+                keys = event.waitKeys(maxWait=1, keyList=key_list)
+                resp_time = timer.getTime()
+                absTimer= core.getAbsTime()
                 if keys is None:
-                    text_stimuli = visual.TextStim(window,text='TIME EXPIRED', wrapWidth=1.2,alignHoriz='center', color='White',
-                    alignVert='center', height=0.06)
+                    text_stimuli = visual.TextStim(window,text='X', wrapWidth=1.2, alignHoriz='center', color='Red',
+                    alignVert='center', height=2)
                     text_stimuli.draw()
+                    mistake_sound.play()
                     #instruction_stimuli['incorrect'].draw()
                     trial['Accuracy'] = 0
                 
                 elif keys[0] != trial['correctresponse']:
-                    text_stimuli = visual.TextStim(window,text='WRONG', wrapWidth=1.2,alignHoriz='center', color='White',
-                    alignVert='center', height=0.06)
+                    text_stimuli = visual.TextStim(window,text='X', wrapWidth=1.2, alignHoriz='center', color='Red',
+                    alignVert='center', height=2)
                     text_stimuli.draw()
+                    mistake_sound.play()
                     #instruction_stimuli['incorrect'].draw()
                     trial['Accuracy'] = 0
 
@@ -219,6 +259,7 @@ class Experiment:
                     trial['Accuracy'] = 1
                 
                 trial['RT'] = resp_time
+                trial['TimeStamp'] = absTimer
                 print (trial['RT'])
                 if keys is not None:
                     trial['Response'] = keys[0]
@@ -308,40 +349,26 @@ def display_instructions(start_instruction=''):
     return key_pressed
 
 
-"""
-def alert_for_wrong_key():
-    
-    """"""
-    Function to notify the user that a wrong key has been pressed
-    Note that the window must be already opened
-    """"""
-
-    text = 'Wrong key was pressed; please press SPACE to continue'
-    text_stimuli = visual.TextStim(window, text=text, wrapWidth=1.2,
-                                   alignHoriz='center', color='White',
-                                   alignVert='center', height=0.06)
-    text_stimuli.pos = (0.0, 0.5)
-    text_stimuli.draw()
-    window.flip()
-    key_pressed=event.waitKeys(keyList=['space'])
-    event.clearEvents()
-    return key_pressed
-"""
-
-
 
 if __name__ == "__main__":
+    completed_sessions = []
+    possible_session = ['practice', 'level1_2options', 'level1_numbers', 'level2_2options', 'level2_numbers']
+
 
     _codeDir = os.path.dirname(os.path.abspath(__file__))
 
     instruction_file = _codeDir + os.sep + "INSTRUCTIONS.txt"
+
+    practice_file = _codeDir + os.sep + "practice_list.csv"
+    level_2options = _codeDir + os.sep + "stroop_task_2options.csv"
+    level_4options = _codeDir + os.sep + "stroop_task_4options_numbers.csv"
     
     background = "Black"
     back_color = (0, 0, 0)
     textColor = "White"
-    experiment = Experiment(win_color=background, num_options=4, txt_color=textColor, completed_levels=None)
+    experiment = Experiment(win_color=background,txt_color=textColor)
 
-    settings = experiment.settings(completed_levels=None)
+    settings = experiment.settings(completed_levels=[])
     #session = print (settings['Session'])
     language = settings['Language']
 
@@ -366,7 +393,6 @@ if __name__ == "__main__":
     text_color = (1, 1, 1)
     
     if (settings['Session'] == 'practice'):
-
         # Display instructions for practice round
         key_pressed=display_instructions(start_instruction='Practice')
         #for i in key_pressed:
@@ -374,9 +400,9 @@ if __name__ == "__main__":
         #        key_pressed = alert_for_wrong_key()
         #        print (key_pressed)
 
-        practice = experiment.create_trials('practice_list.csv')
+        practice = experiment.create_trials(practice_file)
         experiment.num_options = 2
-        fixation = experiment.running_experiment(practice, testtype='practice', curr_window=window)
+        fixation = experiment.running_experiment(practice, testtype='practice', curr_window=window, key_list=['left', 'right'])
 
         key_pressed=display_instructions(start_instruction='End')
         #print(key_pressed)
@@ -389,9 +415,24 @@ if __name__ == "__main__":
     
     # once this session has been completed, display again window to select new level
 
-    settings = experiment.settings(completed_levels='practice')
-    experiment.num_options = 4
-    if (settings['Session'] == 'level1'):
+    settings = experiment.settings(completed_levels=['practice'])
+
+    if (settings['Session'] == 'level1_2options'):
+        window = experiment.create_window(color=back_color)
+    
+        for inst in instructions_dict.keys():
+            instruction, START, END = inst, instructions_dict[inst][0], instructions_dict[inst][1]
+ 
+            instruction_stimuli[instruction] = create_instructions(instructions, START, END, color=textColor)
+        
+        practice = experiment.create_trials(level_2options)
+        experiment.running_experiment(practice, testtype='test', curr_window=window, key_list=['left', 'right'])
+        key_pressed=display_instructions(start_instruction='End')
+        window.close()
+        settings = experiment.settings(completed_levels=['practice', 'level1_2options'])
+
+
+    if (settings['Session'] == 'level1_numbers'):
         window = experiment.create_window(color=back_color)
     
         for inst in instructions_dict.keys():
@@ -399,19 +440,39 @@ if __name__ == "__main__":
 
             instruction_stimuli[instruction] = create_instructions(instructions, START, END, color=textColor)
         
-        practice = experiment.create_trials('practice_list_4options.csv')
-        experiment.running_experiment(practice, testtype='test', curr_window=window)
+        practice = experiment.create_trials(level_4options)
+        experiment.running_experiment(practice, testtype='test', curr_window=window, key_list=['1', '2', '3', '4'])
         key_pressed=display_instructions(start_instruction='End')
         window.close()
+        settings = experiment.settings(completed_levels=['practice', 'level1_2options', 'level1_numbers'])
+        
 
-    settings = experiment.settings(completed_levels='level1')
-    if (settings['Session'] == 'level2'):
+
+    if (settings['Session'] == 'level2_2options'):
         window = experiment.create_window(color=back_color)
         for inst in instructions_dict.keys():
             instruction, START, END = inst, instructions_dict[inst][0], instructions_dict[inst][1]
             instruction_stimuli[instruction] = create_instructions(instructions, START, END, color=textColor)
-        practice = experiment.create_trials('practice_list_4options.csv')
-        experiment.running_experiment(practice, testtype='test2', curr_window=window)
+        practice = experiment.create_trials(level_2options)
+        experiment.running_experiment(practice, testtype='test2', curr_window=window, key_list=['right', 'left'])
+        window.close()
+        settings = experiment.settings(completed_levels=['practice', 'level1_2options', 'level1_numbers', 'level2_2options'])
+        
+    if (settings['Session']=='level2_numbers'):
+        window = experiment.create_window(color=back_color)
+    
+        for inst in instructions_dict.keys():
+            instruction, START, END = inst, instructions_dict[inst][0], instructions_dict[inst][1]
+
+            instruction_stimuli[instruction] = create_instructions(instructions, START, END, color=textColor)
+        
+        practice = experiment.create_trials(level_4options)
+        experiment.running_experiment(practice, testtype='test2', curr_window=window, key_list=['1', '2', '3', '4'])
         key_pressed=display_instructions(start_instruction='End')
         window.close()
+
+
+        
+    key_pressed=display_instructions(start_instruction='End')
+    window.close()
     
